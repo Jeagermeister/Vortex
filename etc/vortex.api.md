@@ -2077,6 +2077,8 @@ interface IDiscoveryPhase {
 // @public
 interface IDiscoveryResult {
     // (undocumented)
+    compatDataPath?: string;
+    // (undocumented)
     environment?: {
         [key: string]: string;
     };
@@ -2101,6 +2103,8 @@ interface IDiscoveryResult {
     // (undocumented)
     pathSetManually?: boolean;
     // (undocumented)
+    protonPath?: string;
+    // (undocumented)
     shell?: boolean;
     // (undocumented)
     shortName?: string;
@@ -2110,6 +2114,8 @@ interface IDiscoveryResult {
     tools?: {
         [id: string]: IDiscoveredTool;
     };
+    // (undocumented)
+    usesProton?: boolean;
 }
 
 // @public
@@ -2595,6 +2601,8 @@ interface IGameStoreEntry {
     // (undocumented)
     appid: string;
     // (undocumented)
+    compatDataPath?: string;
+    // (undocumented)
     gamePath: string;
     // (undocumented)
     gameStoreId: string | undefined;
@@ -2606,6 +2614,10 @@ interface IGameStoreEntry {
     name: string;
     // (undocumented)
     priority?: number;
+    // (undocumented)
+    protonPath?: string;
+    // (undocumented)
+    usesProton?: boolean;
 }
 
 // @public (undocumented)

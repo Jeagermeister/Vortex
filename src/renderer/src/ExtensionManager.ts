@@ -2731,6 +2731,67 @@ class ExtensionManager {
     }
   }
 
+  private isWindowsNativeAddon(addonPath: string): boolean {
+    let fd: number | undefined;
+    try {
+      fd = fs.openSync(addonPath, "r");
+      const magic = Buffer.alloc(2);
+      const bytesRead = fs.readSync(fd, magic, 0, magic.length, 0);
+      return bytesRead === magic.length && magic.toString("ascii") === "MZ";
+    } catch (err) {
+      log("warn", "failed to inspect native extension addon", {
+        addonPath,
+        error: getErrorMessageOrDefault(err),
+      });
+      return false;
+    } finally {
+      if (fd !== undefined) {
+        fs.closeSync(fd);
+      }
+    }
+  }
+
+  private hasWindowsNativeAddon(extensionPath: string): boolean {
+    try {
+      return fs
+        .readdirSync(extensionPath)
+        .filter((entry) => entry.toLowerCase().endsWith(".node"))
+        .some((entry) => this.isWindowsNativeAddon(path.join(extensionPath, entry)));
+    } catch (err) {
+      log("warn", "failed to inspect extension native addons", {
+        extensionPath,
+        error: getErrorMessageOrDefault(err),
+      });
+      return false;
+    }
+  }
+
+  private shouldSkipLinuxIncompatibleDynamicExtension(
+    extensionPath: string,
+    info: IExtension,
+    bundled: boolean,
+  ): boolean {
+    if (process.platform !== "linux" || bundled) {
+      return false;
+    }
+
+    if (info.modId !== 875 || !/bannerlord/i.test(info.name ?? "")) {
+      return false;
+    }
+
+    const skip = this.hasWindowsNativeAddon(extensionPath);
+    if (skip) {
+      log("warn", "skipping Linux-incompatible Bannerlord extension", {
+        extensionPath,
+        name: info.name,
+        modId: info.modId,
+        version: info.version,
+      });
+    }
+
+    return skip;
+  }
+
   private loadDynamicExtension(
     extensionPath: string,
     alreadyLoaded: IRegisteredExtension[],
@@ -2769,6 +2830,10 @@ class ExtensionManager {
       const name = info.id || pathName;
       const namespace =
         info.namespace ?? info.id ?? (bundled ? pathName : this.idify(info.name, pathName));
+
+      if (this.shouldSkipLinuxIncompatibleDynamicExtension(extensionPath, info, bundled)) {
+        return undefined;
+      }
 
       const existing = alreadyLoaded.find((reg) => reg.name === name);
 

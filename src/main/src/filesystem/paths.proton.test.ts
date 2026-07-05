@@ -23,6 +23,19 @@ describe("ProtonWindowsPathResolverImpl", () => {
     );
   });
 
+  it("maps rooted C: paths into the Proton Wine prefix", async () => {
+    await expect(
+      resolver.resolve({
+        scheme: "windows",
+        data: protonData,
+        path: "/C/users/steamuser/AppData",
+        value: `windows://${protonData}////C/users/steamuser/AppData`,
+      } as QualifiedPath),
+    ).resolves.toBe(
+      "/home/alice/.steam/steam/steamapps/compatdata/1091500/pfx/drive_c/users/steamuser/AppData",
+    );
+  });
+
   it("maps Z: back to the Linux host root", async () => {
     const qp = QualifiedPath.parse(`windows://${protonData}///Z/home/alice/Games/Cyberpunk 2077`);
     await expect(resolver.resolve(qp)).resolves.toBe("/home/alice/Games/Cyberpunk 2077");
