@@ -55,7 +55,7 @@ adaptor snapshot creation so Steam Proton snapshots can use:
 ```ts
 baseOS = "linux";
 gameOS = "windows";
-bases.get("linux").get("game");   // linux:///...
+bases.get("linux").get("game"); // linux:///...
 bases.get("windows").get("game"); // windows://proton:...///Z/home/...
 ```
 
@@ -64,50 +64,50 @@ bases.get("windows").get("game"); // windows://proton:...///Z/home/...
 Discovery and renderer metadata:
 
 - `src/renderer/src/types/IGameStoreEntry.ts`
-  - Adds optional `usesProton`, `compatDataPath`, and `protonPath`.
+    - Adds optional `usesProton`, `compatDataPath`, and `protonPath`.
 - `src/renderer/src/extensions/gamemode_management/types/IDiscoveryResult.ts`
-  - Adds optional `usesProton`, `compatDataPath`, and `protonPath`.
+    - Adds optional `usesProton`, `compatDataPath`, and `protonPath`.
 - `src/renderer/src/extensions/gamemode_management/util/discovery.ts`
-  - Preserves Proton metadata from `IGameStoreEntry` into persisted discovery
-    results.
+    - Preserves Proton metadata from `IGameStoreEntry` into persisted discovery
+      results.
 
 IPC and preload:
 
 - `src/shared/src/types/ipc.ts`
-  - Adds `AdaptorSnapshotOptions`.
-  - Extends `adaptors:build-snapshot` with optional snapshot options.
+    - Adds `AdaptorSnapshotOptions`.
+    - Extends `adaptors:build-snapshot` with optional snapshot options.
 - `src/shared/src/types/preload.ts`
-  - Extends `AdaptorsApi.buildSnapshot(...)` with optional snapshot options.
+    - Extends `AdaptorsApi.buildSnapshot(...)` with optional snapshot options.
 - `src/preload/src/index.ts`
-  - Passes snapshot options through Electron IPC.
+    - Passes snapshot options through Electron IPC.
 
 Adaptor bridge:
 
 - `src/renderer/src/extensions/adaptor_bridge/index.ts`
-  - Passes discovery Proton metadata into `window.api.adaptors.buildSnapshot(...)`.
-  - Converts Proton-tagged `windows://` qualified paths back to Linux host paths
-    where needed for game executables and mod type registration.
+    - Passes discovery Proton metadata into `window.api.adaptors.buildSnapshot(...)`.
+    - Converts Proton-tagged `windows://` qualified paths back to Linux host paths
+      where needed for game executables and mod type registration.
 
 Main process and snapshot builder:
 
 - `src/main/src/adaptors.ts`
-  - Registers a Linux-side Proton Windows path resolver.
-  - Builds Steam Proton snapshots with `baseOS: linux` and `gameOS: windows`.
-  - Adds Linux host bases and Windows runtime bases to the same snapshot.
-  - Maps game install paths through Wine `Z:`.
-  - Maps Proton user paths through `C:\users\steamuser`.
-  - Updates version detection path conversion so Proton-tagged Windows paths can
-    resolve to Linux host paths.
+    - Registers a Linux-side Proton Windows path resolver.
+    - Builds Steam Proton snapshots with `baseOS: linux` and `gameOS: windows`.
+    - Adds Linux host bases and Windows runtime bases to the same snapshot.
+    - Maps game install paths through Wine `Z:`.
+    - Maps Proton user paths through `C:\users\steamuser`.
+    - Updates version detection path conversion so Proton-tagged Windows paths can
+      resolve to Linux host paths.
 
 New resolver:
 
 - `src/main/src/filesystem/paths.proton.ts`
-  - Encodes Proton compatdata paths into `windows://` qualified path data.
-  - Resolves tagged Windows paths on Linux:
-    - `C:` -> `<compatdata>/pfx/drive_c`
-    - `Z:` -> Linux host root `/`
+    - Encodes Proton compatdata paths into `windows://` qualified path data.
+    - Resolves tagged Windows paths on Linux:
+        - `C:` -> `<compatdata>/pfx/drive_c`
+        - `Z:` -> Linux host root `/`
 - `src/main/src/filesystem/paths.proton.test.ts`
-  - Covers `C:`, `Z:`, untagged Windows paths, and unsupported drives.
+    - Covers `C:`, `Z:`, untagged Windows paths, and unsupported drives.
 
 ## Verification So Far
 
@@ -134,6 +134,80 @@ The repo expects:
 - Node `24.15.0`
 - pnpm `11.5.1`
 
+## 2026-07-05 Bannerlord Runtime Milestone
+
+Mount & Blade II: Bannerlord is the first proven Linux/Proton game support
+slice in this fork.
+
+Test environment:
+
+- OS: Ubuntu 26.04
+- Steam compatibility tool: Proton Experimental
+- Game app id: `261550`
+- Steam library:
+  `/mnt/304cc9a6-2e94-4da5-bc51-40e5280e9e37/SteamLibrary`
+- Game path:
+  `/mnt/304cc9a6-2e94-4da5-bc51-40e5280e9e37/SteamLibrary/steamapps/common/Mount & Blade II Bannerlord`
+- Compatdata:
+  `/mnt/304cc9a6-2e94-4da5-bc51-40e5280e9e37/SteamLibrary/steamapps/compatdata/261550`
+
+What now works:
+
+- Steam discovery finds Bannerlord on a mounted SSD, not just under `$HOME`.
+- Vortex can manage Bannerlord with a Linux-safe built-in module-folder profile.
+- `nxm://` browser downloads work through the local development desktop handler.
+- Vortex downloads, installs, enables, and deploys Bannerlord module mods.
+- Bannerlord's launcher sees deployed modules.
+- The game reaches the main menu under Proton Experimental with deployed mods.
+
+Mods tested:
+
+- Harmony
+- ButterLib
+- VillageFarming V 1.0.5
+- Additional small module mods after the browser-handler fix
+
+The original downloaded BUTR Bannerlord extension is Windows-native. On Linux it
+failed in Electron with `invalid ELF header` while trying to load a `.node`
+addon that is actually a PE/Windows binary. The current fork handles this by:
+
+- registering the built-in Bannerlord module profile on Linux instead of the
+  stub downloader, and
+- skipping the known Linux-incompatible dynamic BUTR extension when its top-level
+  `.node` addon is a Windows `MZ` binary.
+
+This is intentionally narrow. If BUTR ships a Linux-capable extension later, it
+should not be skipped unless it still contains the Windows-native addon.
+
+## Development NXM Handler
+
+The local Linux development handler used for browser downloads is:
+
+- desktop file:
+  `~/.local/share/applications/com.nexusmods.vortex.dev.desktop`
+- wrapper:
+  `~/.local/bin/vortex-dev-nxm`
+
+The wrapper launches the dev Electron app in `src/main` and forwards the clicked
+`nxm://` URL. In this development checkout it must pass `--no-sandbox` to the
+second Electron process:
+
+```bash
+"$ELECTRON" --no-sandbox . -d "$@"
+```
+
+Without this, Firefox successfully launches the wrapper, but Electron aborts
+before notifying the running Vortex instance:
+
+```text
+The SUID sandbox helper binary was found, but is not configured correctly.
+... chrome-sandbox is owned by root and has mode 4755.
+```
+
+For production packaging, prefer a correctly configured Electron sandbox helper.
+For local development, `--no-sandbox` keeps protocol handoff working without
+changing ownership or mode bits inside `node_modules`.
+
 ## First Linux Verification
 
 On the Linux machine:
@@ -157,9 +231,9 @@ On Ubuntu or another Linux desktop with Steam installed:
    `steamapps/compatdata/<appid>/pfx`.
 3. Start Vortex from Brian's fork.
 4. Check whether Steam discovery stores:
-   - `usesProton: true`
-   - `compatDataPath`
-   - `protonPath`
+    - `usesProton: true`
+    - `compatDataPath`
+    - `protonPath`
 5. Activate the adaptor-backed game and inspect logs for snapshot creation.
 
 ## Next Coding Milestones

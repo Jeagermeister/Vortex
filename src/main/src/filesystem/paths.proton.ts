@@ -28,11 +28,7 @@ export function decodeProtonCompatDataPath(data: string): string | undefined {
 }
 
 function parseWindowsDrivePath(pathValue: string): { drive: string; tail: string } {
-  if (!pathValue.startsWith("/")) {
-    throw new PathResolverError(`Invalid Proton windows path '${pathValue}': must be rooted`);
-  }
-
-  const rest = pathValue.slice(1);
+  const rest = pathValue.startsWith("/") ? pathValue.slice(1) : pathValue;
   const slash = rest.indexOf("/");
   const drive = slash === -1 ? rest : rest.slice(0, slash);
   if (!/^[A-Za-z]$/.test(drive)) {
@@ -47,10 +43,7 @@ function parseWindowsDrivePath(pathValue: string): { drive: string; tail: string
   };
 }
 
-export function resolveProtonWindowsPath(
-  compatDataPath: string,
-  pathValue: string,
-): ResolvedPath {
+export function resolveProtonWindowsPath(compatDataPath: string, pathValue: string): ResolvedPath {
   const { drive, tail } = parseWindowsDrivePath(pathValue);
   const tailParts = tail.split("/").filter((segment) => segment.length > 0);
 
@@ -62,9 +55,7 @@ export function resolveProtonWindowsPath(
     return tailParts.length === 0 ? "/" : pathPosix.join("/", ...tailParts);
   }
 
-  throw new PathResolverError(
-    `Unsupported Proton drive '${drive}:' (only C: and Z: are mapped)`,
-  );
+  throw new PathResolverError(`Unsupported Proton drive '${drive}:' (only C: and Z: are mapped)`);
 }
 
 /**
@@ -74,6 +65,9 @@ export function resolveProtonWindowsPath(
  * them with the Steam compatdata path:
  *
  *   windows://proton:%2Fhome%2Fme%2F...%2Fcompatdata%2F1091500///C/users/steamuser
+ *
+ * QualifiedPath stores the path part as `C/users/...` for tagged values, so
+ * the resolver accepts both that parsed form and explicit `/C/users/...`.
  *
  * The tag lets the host map C: into the Wine prefix and Z: back to the
  * Linux root when an adaptor uses the filesystem service.
