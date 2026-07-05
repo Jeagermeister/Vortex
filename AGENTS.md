@@ -6,3 +6,4 @@ Use `pnpm run` for repo commands. After code changes, run `build`, `test`, `lint
 
 - For repo navigation or code search: read `AGENTS-DIRECTORIES.md`
 - For testing: read `AGENTS-TESTING.md`
+- For Linux/Proton adaptor work in Brian's personal fork: read `docs/investigation/linux-proton-handoff.md`
