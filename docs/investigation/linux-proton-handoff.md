@@ -164,8 +164,23 @@ Mods tested:
 
 - Harmony
 - ButterLib
+- UIExtenderEx
+- Mod Configuration Menu
+- Industrial Revolution
 - VillageFarming V 1.0.5
 - Additional small module mods after the browser-handler fix
+
+Follow-up runtime validation:
+
+- Industrial Revolution and its support stack downloaded and installed quickly.
+- The game launched with Harmony, ButterLib, UIExtenderEx, Mod Configuration
+  Menu, and Industrial Revolution enabled.
+- Mod Configuration Menu showed the installed mods in the main game menu.
+- A saved game reloaded successfully with the enabled mod stack.
+
+Bannerlord is considered solid enough for the first milestone. Avoid using a
+real save to test mod disable/update behavior unless the save is disposable;
+Bannerlord is sensitive to module version mismatches.
 
 The original downloaded BUTR Bannerlord extension is Windows-native. On Linux it
 failed in Electron with `invalid ELF header` while trying to load a `.node`
@@ -178,6 +193,66 @@ addon that is actually a PE/Windows binary. The current fork handles this by:
 
 This is intentionally narrow. If BUTR ships a Linux-capable extension later, it
 should not be skipped unless it still contains the Windows-native addon.
+
+## 2026-07-05 Subnautica Starting Point
+
+Subnautica is the next Linux/Proton game target.
+
+Current public modding guidance uses the modern BepInEx/Nautilus stack:
+
+- Tobey's BepInEx Pack for Subnautica: Nexus mod `1108`
+- Nautilus: Nexus mod `1262`
+- Mod deployment path: `BepInEx/plugins`
+
+The Subnautica extension in upstream Vortex is still a downloaded `QMods` stub.
+The Linux fork now keeps that behavior for non-Linux platforms but registers a
+Linux built-in profile that:
+
+- discovers the Steam install with app id `264710`
+- uses `Subnautica.exe`
+- deploys ordinary mods to `BepInEx/plugins`
+- launches with `WINEDLLOVERRIDES=winhttp=n,b` so Proton loads the deployed
+  Doorstop `winhttp.dll`
+- requires `modtype-bepinex`
+- auto-registers the current Tobey BepInEx Pack file
+  `5.4.23-pack.3.1.1` / Nexus file `10667`
+
+Nautilus should be tested through the normal Nexus "Mod Manager Download" flow
+first rather than auto-installed as a hard-coded dependency. If that works, the
+initial Subnautica runtime sequence is:
+
+1. Install and launch Subnautica once through Steam/Proton.
+2. Manage Subnautica in Vortex.
+3. Confirm the BepInEx pack downloads/installs/enables/deploys.
+4. Install Nautilus from Nexus mod `1262`.
+5. Launch the game and check for a `Mods` tab in Options.
+6. Install one Nautilus-dependent content mod and verify it appears in game.
+
+Runtime note from the first Subnautica attempt:
+
+- Tobey's BepInEx Pack, Nautilus, and SubnauticaMap all installed and deployed
+  to the expected paths.
+- No `BepInEx/LogOutput.log` was created after launching the game, and the
+  Unity `Player.log` did not mention BepInEx, Nautilus, or SubnauticaMap.
+- That indicates the pack was present but Doorstop did not inject.
+- A direct Proton Experimental launch with `WINEDLLOVERRIDES=winhttp=n,b`
+  successfully created `BepInEx/LogOutput.log`.
+- That log confirmed BepInEx, Nautilus `1.0.0.51`, and SubnauticaMap `1.5.12`
+  all loaded and the BepInEx chainloader completed.
+- The failed Vortex launch was traced to stale development build output:
+  Vortex was loading `src/main/build/bundledPlugins/game-subnautica/index.js`,
+  which did not yet include `WINEDLLOVERRIDES`.
+- After changing `extensions/games/game-subnautica/src/index.js`, rebuild the
+  extension and refresh bundled plugins before retesting:
+
+```bash
+pnpm run build
+cd ../../../../src/main
+node ./copy-extensions.mjs
+```
+
+Then restart Vortex, relaunch Subnautica from Vortex, and check that
+`BepInEx/LogOutput.log` receives a new timestamp.
 
 ## Development NXM Handler
 
