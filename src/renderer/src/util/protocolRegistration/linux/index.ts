@@ -19,6 +19,10 @@ import { deregisterLinuxNxmProtocolHandler, registerLinuxNxmProtocolHandler } fr
 
 const NXM_PROTOCOL = "nxm";
 
+function isDevelopmentBuild(): boolean {
+  return process.defaultApp === true || process.env.NODE_ENV === "development";
+}
+
 /**
  * Register Linux protocol handling through the Linux-specific route map.
  *
@@ -41,7 +45,7 @@ export function registerLinuxProtocolHandler(options: IProtocolRegistrationOptio
   return registerLinuxNxmProtocolHandler({
     setAsDefault: options.setAsDefault,
     executablePath: process.execPath,
-    appPath: getVortexPath("package"),
+    appPath: getVortexPath(isDevelopmentBuild() ? "application" : "package"),
   });
 }
 

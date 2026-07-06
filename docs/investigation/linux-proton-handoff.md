@@ -261,17 +261,22 @@ The local Linux development handler used for browser downloads is:
 - desktop file:
   `~/.local/share/applications/com.nexusmods.vortex.dev.desktop`
 - wrapper:
-  `~/.local/bin/vortex-dev-nxm`
+  `~/.local/share/applications/com.nexusmods.vortex.dev.sh`
 
-The wrapper launches the dev Electron app in `src/main` and forwards the clicked
-`nxm://` URL. In this development checkout it must pass `--no-sandbox` to the
-second Electron process:
+The wrapper launches the dev Electron app from `src/main` and forwards the
+clicked `nxm://` URL with `--download`. Do not point Electron at
+`src/main/build`; that directory contains build output but is not an Electron app
+package.
+
+In this development checkout the generated wrapper must pass `--no-sandbox` to
+the second Electron process whenever Electron's `chrome-sandbox` helper is not
+root-owned with mode `4755`:
 
 ```bash
-"$ELECTRON" --no-sandbox . -d "$@"
+"$ELECTRON" --no-sandbox "$APP_PATH" --download "$@"
 ```
 
-Without this, Firefox successfully launches the wrapper, but Electron aborts
+Without this, the browser successfully launches the wrapper, but Electron aborts
 before notifying the running Vortex instance:
 
 ```text
@@ -281,7 +286,9 @@ The SUID sandbox helper binary was found, but is not configured correctly.
 
 For production packaging, prefer a correctly configured Electron sandbox helper.
 For local development, `--no-sandbox` keeps protocol handoff working without
-changing ownership or mode bits inside `node_modules`.
+changing ownership or mode bits inside `node_modules`. The wrapper also unsets
+`ELECTRON_RUN_AS_NODE` and `ELECTRON_NO_ATTACH_CONSOLE` so Electron-based parent
+apps cannot make the protocol handler run as plain Node.
 
 ## First Linux Verification
 
