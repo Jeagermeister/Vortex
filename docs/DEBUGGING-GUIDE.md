@@ -29,7 +29,7 @@ The recommended workflow is VS Code's integrated debugger. Use **Debug Electron*
 pnpm run build
 
 # 2. Ensure main build output exists
-ls src/main/out/main/main.js
+ls src/main/build/main.cjs
 ```
 
 1. Open VS Code in the Vortex project root
@@ -50,8 +50,8 @@ VS Code debug configurations are defined in `.vscode/launch.json`. The default *
 
 **Important Notes:**
 
-- Always run `pnpm run build:all` before debugging to ensure source maps are current
-- If breakpoints aren't hitting, check that `out/` directory has recent files
+- Always run `pnpm run build` before debugging to ensure source maps are current
+- If breakpoints aren't hitting, check that `src/main/build/` has recent files
 - The renderer attach profile needs a running Electron instance with `--remote-debugging-port=9222` (provided by the main-process profiles or `pnpm run start`)
 
 ### Debug Configurations (Profiles)
@@ -417,7 +417,7 @@ Sometimes issues only occur in production builds. Here's how to debug them.
 
 ```bash
 # Creates installer without code signing (faster)
-pnpm run package:local
+pnpm run package:nosign
 ```
 
 This downloads required redistributables and creates an unsigned installer in `dist/` directory.
@@ -503,7 +503,7 @@ If a native module crashes:
 **Solutions:**
 
 1. Rebuild the project: `pnpm run build`
-2. Check source maps exist in `src/main/out/` directory
+2. Check source maps exist in `src/main/build/` directory
 3. Verify `outFiles` in launch.json matches build output
 4. Clear VS Code breakpoint cache: Restart VS Code
 5. Check file path matches (Windows path separators)

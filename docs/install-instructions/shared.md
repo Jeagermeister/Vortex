@@ -42,10 +42,14 @@ cd C:\v
 
 Use `C:\v` on Windows to avoid path length issues.
 
-3. Install the pinned `node.js` and `yarn` versions:
+3. Install `node.js` and `yarn`.
+
+The repo supports Node.js `24.15.0` or newer. If you already have a newer
+system Node.js package installed, you can keep using it. Volta users can install
+the repo baseline:
 
 ```bash
-volta install node@22 yarn@v1
+volta install node@24.15.0 yarn@v1
 ```
 
 4. Install `pnpm` through Corepack:
@@ -61,7 +65,13 @@ corepack install
 pnpm install
 ```
 
-6. Install the git pre-commit hook for auto-formatting:
+6. Run the environment doctor:
+
+```bash
+pnpm run doctor
+```
+
+7. Install the git pre-commit hook for auto-formatting:
 
 ```bash
 pnpm run prepare
@@ -77,12 +87,13 @@ yarn --version
 pnpm --version
 python3 --version
 dotnet --list-sdks
+pnpm run doctor
 ```
 
 ## Notes
 
 - If `volta` is not available after reopening terminal, add `~/.volta/bin` to your shell `PATH`
-- You may want to pin Node locally with `volta pin node@22.22.0` to match the repo's `package.json`
+- You may want to pin Node locally with `volta pin node@24.15.0` for reproducible local builds.
 
 [Generic Installation Instructions]: ./generic.md
 [Volta]: https://docs.volta.sh/guide/getting-started

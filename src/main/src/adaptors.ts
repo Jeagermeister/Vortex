@@ -498,12 +498,7 @@ function registerIpcHandlers(): void {
    */
   betterIpcMain.handle(
     "adaptors:build-snapshot",
-    (
-      _event: unknown,
-      store: string,
-      gamePath: string,
-      options?: AdaptorSnapshotOptions,
-    ) => {
+    (_event: unknown, store: string, gamePath: string, options?: AdaptorSnapshotOptions) => {
       if (!KNOWN_STORES.has(store)) {
         return Promise.reject(
           new Error(

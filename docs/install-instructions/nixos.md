@@ -45,7 +45,7 @@ pnpm install
 5. Build the project:
 
 ```bash
-pnpm run build:all
+pnpm run build
 ```
 
 6. Start Vortex:

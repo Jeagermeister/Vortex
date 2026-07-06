@@ -57,10 +57,10 @@ jobs:
 
       - uses: pnpm/action-setup@v6
 
-      - name: Read Node.js version from package.json
+      - name: Read Node.js version from .node-version
         id: node-version
         run: |
-          NODE_VERSION=$(node -p "require('./package.json').engines.node")
+          NODE_VERSION=$(tr -d '[:space:]' < .node-version)
           echo "NODE_VERSION=$NODE_VERSION" >> "$GITHUB_OUTPUT"
           echo "Using Node.js version: $NODE_VERSION"
 

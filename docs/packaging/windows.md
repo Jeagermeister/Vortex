@@ -8,7 +8,7 @@ to understand how signed release builds are produced.
 To create a packaged installer for local testing without code signing:
 
 ```bash
-pnpm run package:local
+pnpm run package:nosign
 ```
 
 This prepares the Windows runtime assets, downloads the required

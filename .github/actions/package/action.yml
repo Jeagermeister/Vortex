@@ -89,12 +89,11 @@ runs:
       shell: pwsh
       run: .\download-codesigntool.ps1
 
-    - name: Read Node.js version from package.json
+    - name: Read Node.js version from .node-version
       id: node-version
       shell: pwsh
       run: |
-        $packageJson = Get-Content package.json | ConvertFrom-Json
-        $nodeVersion = $packageJson.engines.node
+        $nodeVersion = (Get-Content .node-version -Raw).Trim()
         echo "NODE_VERSION=$nodeVersion" >> $env:GITHUB_OUTPUT
         echo "Using Node.js version: $nodeVersion"
 
