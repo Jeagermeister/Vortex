@@ -14,7 +14,7 @@ pnpm install
 ```
 
 This also runs the `preinstall` hook which creates `.local.env` with
-`NX_PARALLEL` set to your CPU core count.
+`NX_PARALLEL` set to a conservative local default.
 
 ---
 
@@ -45,8 +45,12 @@ Scripts wired into `package.json` can also be called with `pnpm run <name>`.
   imports to their runtime paths. Extension build configs import this module;
   do not run it directly.
 
-- `create-env-file.mjs` -- writes `.local.env` with `NX_PARALLEL` set to the
-  number of CPU cores. Runs automatically on `pnpm install`.
+- `create-env-file.mjs` -- writes `.local.env` with `NX_PARALLEL` capped at a
+  conservative default. Set `NX_PARALLEL` before install to override it.
+  Runs automatically on `pnpm install`.
+
+- `doctor.mjs` -- checks the local toolchain and Linux/Steam/Proton discovery
+  prerequisites. Run via `pnpm run doctor`.
 
 - `generate-query-types.ts` -- generates TypeScript interfaces from SQL query
   definitions in `src/queries/`. Run via `pnpm run generate:query-types`.

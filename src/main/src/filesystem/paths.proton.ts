@@ -76,18 +76,28 @@ export class ProtonWindowsPathResolverImpl implements PathResolver {
   readonly scheme = "windows" as const;
   readonly parent = null;
 
-  async resolve(path: QualifiedPath): Promise<ResolvedPath> {
+  resolve(path: QualifiedPath): Promise<ResolvedPath> {
     if (path.scheme !== this.scheme) {
-      throw new PathResolverError(`Unsupported scheme '${path.scheme}'`);
+      return Promise.reject(new PathResolverError(`Unsupported scheme '${path.scheme}'`));
     }
 
     const compatDataPath = decodeProtonCompatDataPath(path.data);
     if (compatDataPath === undefined) {
-      throw new PathResolverError(
-        `Unsupported Windows path '${path.value}': missing Proton compatdata tag`,
+      return Promise.reject(
+        new PathResolverError(
+          `Unsupported Windows path '${path.value}': missing Proton compatdata tag`,
+        ),
       );
     }
 
-    return resolveProtonWindowsPath(compatDataPath, path.path);
+    try {
+      return Promise.resolve(resolveProtonWindowsPath(compatDataPath, path.path));
+    } catch (err) {
+      return Promise.reject(
+        err instanceof Error
+          ? err
+          : new PathResolverError(`Failed to resolve Proton path '${path.value}'`, err),
+      );
+    }
   }
 }

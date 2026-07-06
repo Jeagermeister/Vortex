@@ -131,7 +131,7 @@ The Windows machine used for the import did not have these commands available:
 
 The repo expects:
 
-- Node `24.15.0`
+- Node `>=24.15.0`
 - pnpm `11.5.1`
 
 ## 2026-07-05 Bannerlord Runtime Milestone
@@ -319,8 +319,8 @@ After Steam Proton passes typecheck and basic runtime testing:
 2. Model GOG, Epic, Heroic, and custom Wine prefixes with the same
    "Linux host, Windows runtime" snapshot shape.
 3. Generalize the Proton resolver into a broader Wine-prefix resolver if needed.
-4. Revisit packaging, especially Flatpak, because the repo's Flatpak docs
-   currently say pnpm support is broken.
+4. Revisit packaging, especially Flatpak, because source generation still relies
+   on Yarn-compatible Flatpak inputs even though the repo uses pnpm.
 
 ## Codex Notes
 

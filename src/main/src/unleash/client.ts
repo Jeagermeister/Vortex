@@ -10,7 +10,7 @@ import { z } from "zod";
 
 import { log } from "../logging";
 import { APP_NAME, BASE_URL, API_KEY, ENVIRONMENT, INTERVAL } from "./constants";
-import type { paths, components } from "./schema";
+import type { paths } from "./schema";
 
 type UnleashContext = {
   appName: string;
@@ -43,12 +43,42 @@ export type UnleashClientOptions = {
   cacheTtlMs?: number;
 };
 
+const unleashErrorSchema = z.object({
+  id: z.union([z.string(), z.number()]).optional(),
+  name: z.string().optional(),
+  message: z.string().optional(),
+});
+
+const unleashVariantSchema = z
+  .object({
+    name: z.string(),
+    payload: z
+      .object({
+        value: z.string(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+const unleashToggleSchema = z
+  .object({
+    name: z.string(),
+    variant: unleashVariantSchema.nullish(),
+  })
+  .passthrough();
+
+const unleashFeaturesSchema = z.object({
+  toggles: z.array(unleashToggleSchema),
+});
+
 const flagCacheSchema = z.object({
   timestamp: z.number(),
-  toggles: z.array(z.unknown()),
+  toggles: z.array(unleashToggleSchema),
 });
 
 type FlagCache = z.infer<typeof flagCacheSchema>;
+type UnleashToggle = z.infer<typeof unleashToggleSchema>;
 
 export class UnleashClient {
   readonly #apiClient: ReturnType<typeof createClient<CustomPaths>>;
@@ -151,9 +181,7 @@ export class UnleashClient {
     });
 
     if (result.error) {
-      throw new Error(
-        `unleash metrics post failed: ${result.error.id} ${result.error.name}: ${result.error.message}`,
-      );
+      throw new Error(formatUnleashError("unleash metrics post failed", result.error));
     }
   }
 
@@ -169,9 +197,7 @@ export class UnleashClient {
     });
 
     if (result.error) {
-      throw new Error(
-        `unleash fetch failed: ${result.error.id} ${result.error.name}: ${result.error.message}`,
-      );
+      throw new Error(formatUnleashError("unleash fetch failed", result.error));
     }
 
     if (!result.data) {
@@ -179,7 +205,13 @@ export class UnleashClient {
       return [];
     }
 
-    const { toggles } = result.data;
+    const data = unleashFeaturesSchema.safeParse(result.data);
+    if (!data.success) {
+      log("warn", "unleash returned unexpected feature flag payload", { error: data.error });
+      return [];
+    }
+
+    const { toggles } = data.data;
     const flags: FeatureFlag[] = [];
     for (let i = 0; i < toggles.length; i++) {
       const toggle = toggles[i];
@@ -189,7 +221,7 @@ export class UnleashClient {
     }
 
     log("debug", "received feature flags", { num: flags.length });
-    void this.#writeCache(toggles as UnleashToggle[]);
+    void this.#writeCache(toggles);
     return flags;
   }
 
@@ -223,7 +255,7 @@ export class UnleashClient {
 
       const flags: FeatureFlag[] = [];
       for (const toggle of toggles) {
-        const flag = parseToggle(toggle as UnleashToggle);
+        const flag = parseToggle(toggle);
         if (flag) flags.push(flag);
       }
       log("debug", "replayed feature flags from cache", { num: flags.length });
@@ -266,36 +298,43 @@ function serializeContext(context: UnleashContext): string {
   return params.toString();
 }
 
-type UnleashToggle = components["schemas"]["frontendApiFeatureSchema"];
+function formatUnleashError(prefix: string, error: unknown): string {
+  const parsed = unleashErrorSchema.safeParse(error);
+  if (!parsed.success) {
+    return prefix;
+  }
+
+  const { id, name, message } = parsed.data;
+  const details = [id, name, message].filter((part) => part !== undefined && part !== "");
+  return details.length > 0 ? `${prefix}: ${details.join(" ")}` : prefix;
+}
+
+function isKnownFlagName(flagName: string): flagName is KnownFlagName {
+  return flagName in flagVariantSchemas;
+}
 
 function parseToggle({ name, variant }: UnleashToggle): FeatureFlag | undefined {
-  const flagName = name as KnownFlagName;
-  if (!(flagName in flagVariantSchemas)) {
-    log("debug", "unkown feature flag returned by Unleash API", { flagName });
+  if (!isKnownFlagName(name)) {
+    log("debug", "unkown feature flag returned by Unleash API", { flagName: name });
     return undefined;
   }
 
   const parsedVariant = variant?.payload
-    ? parseVariantData(flagName, variant.name, variant.payload.value)
+    ? parseVariantData(name, variant.name, variant.payload.value)
     : undefined;
 
-  const res = {
-    name: flagName,
+  return {
+    name,
     variant: parsedVariant,
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  return res as FeatureFlag;
+  } as FeatureFlag;
 }
 
 function parseVariantData(
-  flagName: string,
+  flagName: KnownFlagName,
   variantName: string,
   value: string,
 ): FeatureFlag["variant"] | undefined {
-  if (!(flagName in flagVariantSchemas)) return undefined;
-
-  const variants = flagVariantSchemas[flagName as KnownFlagName] as Record<string, z.ZodType>;
+  const variants = flagVariantSchemas[flagName] as Record<string, z.ZodType>;
   const schema = variants[variantName];
 
   if (!schema) {
