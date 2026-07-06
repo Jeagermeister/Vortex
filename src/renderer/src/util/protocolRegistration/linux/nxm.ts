@@ -28,6 +28,9 @@ const NXM_PROTOCOL = "nxm";
 const PACKAGE_DESKTOP_ID = "com.nexusmods.vortex.desktop";
 const DEV_DESKTOP_ID = "com.nexusmods.vortex.dev.desktop";
 const DEV_WRAPPER_FILE_NAME = "com.nexusmods.vortex.dev.sh";
+const ELECTRON_SANDBOX_FILE_NAME = "chrome-sandbox";
+const ELECTRON_SANDBOX_MODE = 0o4755;
+const ELECTRON_SANDBOX_ROOT_UID = 0;
 
 /**
  * Required registration inputs for Linux `nxm` routing.
@@ -114,6 +117,37 @@ function escapeShellScriptArgument(input: string): string {
   return input.replace(/(["\\$`])/g, "\\$1");
 }
 
+function shellScriptArgument(input: string): string {
+  return `"${escapeShellScriptArgument(input)}"`;
+}
+
+function shellScriptCommand(args: string[]): string {
+  return args.map(shellScriptArgument).join(" ");
+}
+
+export function isElectronSandboxHelperConfigured(executablePath: string): boolean {
+  const sandboxPath = path.join(path.dirname(executablePath), ELECTRON_SANDBOX_FILE_NAME);
+
+  try {
+    const sandboxStats = fs.statSync(sandboxPath);
+    const sandboxMode = sandboxStats.mode & 0o7777;
+    return sandboxStats.uid === ELECTRON_SANDBOX_ROOT_UID && sandboxMode === ELECTRON_SANDBOX_MODE;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+      log("debug", "unable to inspect electron sandbox helper", {
+        executablePath,
+        sandboxPath,
+        error: (err as Error).message,
+      });
+    }
+    return false;
+  }
+}
+
+export function devElectronSandboxArgs(executablePath: string): string[] {
+  return isElectronSandboxHelperConfigured(executablePath) ? [] : ["--no-sandbox"];
+}
+
 /**
  * Generate the wrapper script content for executing Vortex.
  *
@@ -130,7 +164,13 @@ function escapeShellScriptArgument(input: string): string {
  * The desktop-entry escaping rules are applied separately to Exec/TryExec fields.
  * Vortex adds `appPath` because Electron launches as: <electron> <appPath> ...
  */
-function generateWrapperScript(executablePath: string, appPath: string): string {
+export function generateWrapperScript(executablePath: string, appPath: string): string {
+  const electronCommand = shellScriptCommand([
+    executablePath,
+    ...devElectronSandboxArgs(executablePath),
+    appPath,
+  ]);
+
   // Persist GTK/Electron environment variables used to run Vortex.
   // This is needed for Nix, such that you can launch the desktop entry outside
   // of the Nix devShell during development. For other environments, this will
@@ -165,14 +205,18 @@ function generateWrapperScript(executablePath: string, appPath: string): string 
     // Vortex from nxm:// links.
     "unset LD_LIBRARY_PATH\n" +
     "unset LD_PRELOAD\n" +
+    // Electron-based parent applications can leak this into protocol handlers. If it remains
+    // set, Electron runs as plain Node instead of launching Vortex.
+    "unset ELECTRON_RUN_AS_NODE\n" +
+    "unset ELECTRON_NO_ATTACH_CONSOLE\n" +
     (electronEnvExports ? electronEnvExports + "\n" : "") +
     // Only pass --download when a parameter %u is provided (nxm:// links from browser).
     // This matches Windows behaviour, which includes --download on all protocol handler calls,
     // but does not on non-handler calls (e.g., when starting from the start menu).
     `if [ -n "$1" ]; then\n` +
-    `  exec "${escapeShellScriptArgument(executablePath)}" "${escapeShellScriptArgument(appPath)}" --download "$@"\n` +
+    `  exec ${electronCommand} --download "$@"\n` +
     `else\n` +
-    `  exec "${escapeShellScriptArgument(executablePath)}" "${escapeShellScriptArgument(appPath)}"\n` +
+    `  exec ${electronCommand}\n` +
     `fi\n`
   );
 }
