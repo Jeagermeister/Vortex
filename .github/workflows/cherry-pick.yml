@@ -11,7 +11,8 @@ permissions:
 
 jobs:
   cherry-pick:
-    if: github.event.pull_request.merged == true
+    # Fork note: uses an upstream GitHub App token — upstream only.
+    if: github.repository == 'Nexus-Mods/Vortex' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:

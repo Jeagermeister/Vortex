@@ -15,7 +15,8 @@ permissions:
 
 jobs:
   upload:
-    if: ${{ !github.event.release.prerelease || github.event_name == 'workflow_dispatch' }}
+    # Fork note: uploads to upstream's R2 bucket from upstream's self-hosted runner.
+    if: ${{ github.repository == 'Nexus-Mods/Vortex' && (!github.event.release.prerelease || github.event_name == 'workflow_dispatch') }}
     runs-on: platform-cluster
     steps:
       - name: Install tools

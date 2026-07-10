@@ -7,6 +7,9 @@ on:
 
 jobs:
   sync-tag:
+    # Fork note: pushes tags to Nexus-Mods/vortex-api with an upstream GitHub App
+    # token — upstream infrastructure only.
+    if: github.repository == 'Nexus-Mods/Vortex'
     runs-on: ubuntu-latest
 
     steps:
