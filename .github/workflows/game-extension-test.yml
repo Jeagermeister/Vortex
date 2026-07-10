@@ -18,8 +18,21 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       games: ${{ steps.find.outputs.games }}
+      has_key: ${{ steps.key.outputs.has_key }}
     steps:
       - uses: actions/checkout@v7
+
+      # The secrets context is not available in job-level `if`, so surface key
+      # presence as an output for the test job to gate on.
+      - name: Check for NEXUS_API_KEY
+        id: key
+        run: |
+          echo "has_key=${{ secrets.NEXUS_API_KEY != '' }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ secrets.NEXUS_API_KEY != '' }}" = "false" ]; then
+            echo "## ⏭️ Game Extension Test skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No \`NEXUS_API_KEY\` repository secret is configured, and the test harness needs it to talk to the Nexus API. Add one under Settings → Secrets and variables → Actions to run these tests." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Discover opted-in game extensions
         id: find
@@ -44,7 +57,7 @@ jobs:
 
   test:
     needs: discover
-    if: needs.discover.outputs.games != '[]'
+    if: needs.discover.outputs.games != '[]' && needs.discover.outputs.has_key == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
@@ -129,6 +142,8 @@ jobs:
           status="${{ needs.test.result }}"
           if [ "$status" = "success" ]; then
             icon="✅"
+          elif [ "$status" = "skipped" ]; then
+            icon="⏭️"
           else
             icon="❌"
           fi
@@ -150,18 +165,24 @@ jobs:
             const title = "[game-extension-test] nightly run failed";
             const body = `Nightly run failed on ${new Date().toISOString()}.\n\nWorkflow: ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
             const { owner, repo } = context.repo;
-            const issues = await github.paginate(github.rest.issues.listForRepo, {
-              owner, repo, state: "open", labels: "game-extension-test",
-            });
-            const existing = issues.find(i => i.title === title);
-            if (existing) {
-              await github.rest.issues.createComment({
-                owner, repo, issue_number: existing.number, body,
+            try {
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner, repo, state: "open", labels: "game-extension-test",
               });
-            } else {
-              await github.rest.issues.create({
-                owner, repo, title, body, labels: ["game-extension-test"],
-              });
+              const existing = issues.find(i => i.title === title);
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: existing.number, body,
+                });
+              } else {
+                await github.rest.issues.create({
+                  owner, repo, title, body, labels: ["game-extension-test"],
+                });
+              }
+            } catch (e) {
+              // Repos with issues disabled get a 410 here; don't fail the
+              // rollup over the reporting side-channel.
+              core.warning(`Could not update rolling issue: ${e.message}`);
             }
 
       - name: Close rolling issue on success
@@ -171,12 +192,16 @@ jobs:
           script: |
             const title = "[game-extension-test] nightly run failed";
             const { owner, repo } = context.repo;
-            const issues = await github.paginate(github.rest.issues.listForRepo, {
-              owner, repo, state: "open", labels: "game-extension-test",
-            });
-            const existing = issues.find(i => i.title === title);
-            if (existing) {
-              await github.rest.issues.update({
-                owner, repo, issue_number: existing.number, state: "closed",
+            try {
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner, repo, state: "open", labels: "game-extension-test",
               });
+              const existing = issues.find(i => i.title === title);
+              if (existing) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: existing.number, state: "closed",
+                });
+              }
+            } catch (e) {
+              core.warning(`Could not update rolling issue: ${e.message}`);
             }
