@@ -100,7 +100,9 @@ jobs:
 
   api:
     needs: build
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    # Fork note: publishes generated API types to Nexus-Mods/vortex-api with an
+    # upstream GitHub App token — upstream infrastructure only.
+    if: github.repository == 'Nexus-Mods/Vortex' && github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
     steps:

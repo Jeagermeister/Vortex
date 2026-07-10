@@ -16,6 +16,10 @@ concurrency:
 
 jobs:
   e2e:
+    # Fork note: runs only on upstream's self-hosted runners (vortex-e2e /
+    # platform-cluster) and needs upstream E2E account secrets — queues forever
+    # on a fork.
+    if: github.repository == 'Nexus-Mods/Vortex'
     strategy:
       fail-fast: false
       matrix:

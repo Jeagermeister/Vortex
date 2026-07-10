@@ -16,7 +16,10 @@ jobs:
     # Skip the auto-cherry-pick PRs created by .github/scripts/cherry-pick.sh
     # (head branches always start with `cherry-pick/`); the original PR is
     # what fixes the fingerprint, the cherry-pick is just propagation.
+    # Fork note: syncs to upstream's ClickHouse crash DB on upstream's self-hosted
+    # runners (platform-cluster) — queues forever on a fork.
     if: >-
+      github.repository == 'Nexus-Mods/Vortex' &&
       github.event.pull_request.merged == true &&
       !startsWith(github.event.pull_request.head.ref, 'cherry-pick/')
     runs-on: platform-cluster

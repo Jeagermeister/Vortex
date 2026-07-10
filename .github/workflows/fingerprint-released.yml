@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   sync:
+    # Fork note: upstream ClickHouse + self-hosted runner — upstream only.
+    if: github.repository == 'Nexus-Mods/Vortex'
     runs-on: platform-cluster
     steps:
       - uses: actions/checkout@v7
